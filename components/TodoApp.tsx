@@ -38,20 +38,27 @@ export default function TodoApp() {
   const addTodo = async () => {
     const text = input.trim();
     if (!text) return;
+    const tempId = crypto.randomUUID();
+    const optimistic: Todo = { id: tempId, text, completed: false, created_at: new Date().toISOString() };
+    setTodos((prev) => [...prev, optimistic]);
     setInput("");
-    await supabase.from("todos").insert({ text, completed: false });
+    const { data } = await supabase.from("todos").insert({ text, completed: false }).select().single();
+    if (data) setTodos((prev) => prev.map((t) => (t.id === tempId ? data : t)));
   };
 
   const toggleTodo = async (id: string, completed: boolean) => {
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !completed } : t)));
     await supabase.from("todos").update({ completed: !completed }).eq("id", id);
   };
 
   const deleteTodo = async (id: string) => {
+    setTodos((prev) => prev.filter((t) => t.id !== id));
     await supabase.from("todos").delete().eq("id", id);
   };
 
   const clearCompleted = async () => {
     const ids = todos.filter((t) => t.completed).map((t) => t.id);
+    setTodos((prev) => prev.filter((t) => !t.completed));
     await supabase.from("todos").delete().in("id", ids);
   };
 
